@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ComposeApp21</string>
+    <string name="title_activity_welcome">WelcomeActivity</string>
+    
+    <string name="perm_name_fine_location">精确定位</string>
+    <string name="perm_desc_fine_location">精确定位</string>
+    <string name="perm_reason_fine_location">理由TODO</string>
+
+    <string name="perm_name_coarse_location">模糊定位</string>
+    <string name="perm_desc_coarse_location">模糊定位</string>
+    <string name="perm_reason_coarse_location">理由TODO</string>
+
+    <string name="app_description">Dashboard for car</string>
+
+    <string name="last_step">上一步</string>
+    <string name="next_step">下一步</string>
+    <string name="enter_main_page">开始使用</string>
+</resources>
