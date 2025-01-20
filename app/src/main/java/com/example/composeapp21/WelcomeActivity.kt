@@ -9,38 +9,37 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.composeapp21.ui.theme.ComposeApp21Theme
 
 class WelcomeActivity : ComponentActivity() {
@@ -48,6 +47,7 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        vm.initViewModel(this)
         vm.updatePermissionStates(this)
         val deniedPerms = vm.findDeniedPermissions()
         if (deniedPerms.none()) {
@@ -60,8 +60,9 @@ class WelcomeActivity : ComponentActivity() {
                 ComposeApp21Theme {
                     PermissionScreen(
                         permGroups = deniedPerms,
-                        onRequestPermission = {permGroup->
-                            permReqLauncher.launch(permGroup.permissionStates.map { it.permissionId }.toTypedArray())
+                        onRequestPermission = { req->
+                            vm.addPermissionRequest(req)
+                            permReqLauncher.launch(req.permissionGroupInfo.permissionStates.map { it.permissionId }.toTypedArray())
                         },
                         onComplete = {
                             enterMainActivity()
@@ -84,21 +85,23 @@ class WelcomeActivity : ComponentActivity() {
 @Composable
 fun PermissionScreen(
                      permGroups: List<PermissionGroupInfo>,
-                     onRequestPermission: (PermissionGroupInfo)->Unit = {},
+                     onRequestPermission: (request: PermissionRequest)->Unit = {  },
                      onComplete: ()->Unit = {},
                      completedPageNumber: ()->MutableIntState = { mutableIntStateOf(0) }
 ) {
-    val pageCount = rememberSaveable(permGroups) {
-        permGroups.size + 2
+    val pageCount = remember(permGroups) {
+        permGroups.size + 2 // 第一页+若干权限组申请页+最后一页
     }
     val pagerState = rememberPagerState {
         pageCount
     }
-    val allowPageIndex = rememberSaveable(completedPageNumber) {
+    val allowPageIndex = remember(completedPageNumber) {
         completedPageNumber()
     }
 
-    Scaffold(modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars).fillMaxSize(),
+    Scaffold(modifier = Modifier
+        .windowInsetsPadding(WindowInsets.systemBars)
+        .fillMaxSize(),
         bottomBar = {
             NavigationButtons(
                 modifier = Modifier.fillMaxWidth(),
@@ -121,16 +124,22 @@ fun PermissionScreen(
         }
     ) { innerPadding ->
         Surface(modifier = Modifier.padding(innerPadding)) {
-            HorizontalPager(pagerState, modifier = Modifier.fillMaxSize(), userScrollEnabled = false) {
+            HorizontalPager(pagerState, modifier = Modifier.fillMaxSize(), userScrollEnabled = false) { pageIndex->
                 if (pagerState.currentPage == 0) {
                     FirstPage()
                 } else if (pagerState.currentPage == pageCount - 1) {
-                    LastPage()
-                } else {
-                    MiddlePage(permGroups = permGroups,
-                        onClickRequest = {
-                            onRequestPermission(it)
+                    LastPage(
+                        onEnter = {
+                            allowPageIndex.intValue = pageCount - 1
                         }
+                    )
+                } else {
+                    MiddlePage(
+                        currentPageIndex = pageIndex,
+                        firstPageIndex = 1,
+                        lastPageIndex = pageCount - 2,
+                        permGroups = permGroups,
+                        onClickRequest = onRequestPermission
                     )
                 }
             }
@@ -181,16 +190,47 @@ fun NavigationButtons(
 
 @Composable
 fun MiddlePage(
+    currentPageIndex: Int,
+    firstPageIndex: Int,
+    lastPageIndex: Int,
     permGroups: List<PermissionGroupInfo>,
-    onClickRequest: (PermissionGroupInfo)->Unit = {},
+    onClickRequest: (PermissionRequest)->Unit = { },
 ) {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        Text("权限请求页面")
+    val currentDataItemIndex = remember(currentPageIndex, firstPageIndex, lastPageIndex) {
+        currentPageIndex - firstPageIndex
+    }
+    if (currentPageIndex in firstPageIndex .. lastPageIndex && currentDataItemIndex <= permGroups.lastIndex){
+
+        val permGroup = remember(currentPageIndex, firstPageIndex, lastPageIndex, permGroups) {
+            permGroups[currentDataItemIndex]
+        }
+
+        Column ( modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("权限请求页面")
+            permGroup.permissionStates.forEachIndexed { index, perm ->
+                Text("权限名：${stringResource(perm.nameResId)}")
+                Text("权限描述：${stringResource(perm.descriptionResId)}")
+                Text("请求理由：${stringResource(perm.reasonResId)}")
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            Button(onClick = {
+                onClickRequest(PermissionRequest(currentPageIndex, permGroup))
+            }) {
+                Text(stringResource(R.string.acquire_grant))
+            }
+        }
     }
 }
 
 @Composable
-fun LastPage() {
+fun LastPage(onEnter: ()->Unit) {
+    LaunchedEffect(Unit) {
+        onEnter()
+    }
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
         Text("您已完成初步设置")
     }

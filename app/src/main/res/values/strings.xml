@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">ComposeApp21</string>
-    <string name="title_activity_welcome">WelcomeActivity</string>
+    <string name="app_name">行车助手</string>
+    <string name="title_activity_welcome">欢迎使用行车助手</string>
     
     <string name="perm_name_fine_location">精确定位</string>
     <string name="perm_desc_fine_location">精确定位</string>
@@ -10,9 +10,35 @@
     <string name="perm_desc_coarse_location">模糊定位</string>
     <string name="perm_reason_coarse_location">理由TODO</string>
 
+    <string name="perm_name_location_hardware">定位硬件</string>
+    <string name="perm_desc_location_hardware">定位硬件</string>
+    <string name="perm_reason_location_hardware">理由TODO</string>
+
+    <string name="perm_name_access_bg_location">后台定位</string>
+    <string name="perm_desc_access_bg_location">后台定位</string>
+    <string name="perm_reason_access_bg_location">理由TODO</string>
+
     <string name="app_description">Dashboard for car</string>
 
     <string name="last_step">上一步</string>
     <string name="next_step">下一步</string>
     <string name="enter_main_page">开始使用</string>
+    <string name="acquire_grant">获取授权</string>
+
+    <string name="speed_label">速度</string>
+    <string name="speed_label_kmph">时速</string>
+    <string name="speed_unit_mps">m/s</string>
+    <string name="speed_unit_kmph">km/h</string>
+
+    <string name="altitude_label">海拔</string>
+    <string name="altitude_unit">m</string>
+
+    <string name="msl_altitude_label">平均海拔</string>
+    <string name="msl_altitude_unit">m</string>
+
+    <string name="satellite_count_label">卫星数</string>
+    <string name="satellite_count_unit">(个)</string>
+
+    <string name="speed_accuracy_label">速度精度</string>
+    <string name="speed_accuracy_unit">m/s</string>
 </resources>
