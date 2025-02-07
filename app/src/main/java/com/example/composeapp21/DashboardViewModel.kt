@@ -18,6 +18,7 @@ import androidx.core.location.LocationRequestCompat
 import androidx.core.os.HandlerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -53,11 +54,11 @@ class DashboardViewModel: ViewModel() {
     //平均海拔
     val hasMslAltitudeState = MutableStateFlow(false)
     val mslAltitudeState = MutableStateFlow(0.0)
+    val formatMslAltitude = MutableStateFlow("")
 
     //平均海拔精度
     val hasMslAltitudeAccuracyState = MutableStateFlow(false)
     val mslAltitudeAccuracyState = MutableStateFlow(0f)
-    val formatMslAltitude = MutableStateFlow("")
 
     //海拔
     val hasAltitudeState = MutableStateFlow(false)
@@ -101,6 +102,8 @@ class DashboardViewModel: ViewModel() {
             super.onSatelliteStatusChanged(status)
             // 可以搜索到的卫星总数
             val satelliteCount = status.satelliteCount
+
+            hasGnssSatelliteCount.tryEmit(true)
             gnssSatelliteCount.tryEmit(satelliteCount)
 
 //            for (index in 0 until satelliteCount) {
@@ -127,6 +130,7 @@ class DashboardViewModel: ViewModel() {
             if(hasMslAltitudeState.value) {
                 mslAltitudeState.tryEmit(LocationCompat.getMslAltitudeMeters(location))
             }
+            Log.i("MSL", "hasMslAltitudeState = ${hasMslAltitudeState.value}")
 
             hasMslAltitudeAccuracyState.tryEmit(LocationCompat.hasMslAltitudeAccuracy(location))
             if (hasMslAltitudeAccuracyState.value) {
@@ -176,46 +180,44 @@ class DashboardViewModel: ViewModel() {
 
     }
 
+    private fun <T> collect(flow: Flow<T>, action: suspend (T)->Unit){
+        viewModelScope.launch {
+            flow.collect {
+                action(it)
+            }
+        }
+    }
+
     private fun initFormatters() {
-        viewModelScope.launch {
-            speedState.collect {
-                formatSpeedMps.emit(nf1.format(it))
-                formatSpeedKmph.emit(nf1.format(it* 3.6)) //  1 m/s = 3.6km/h
-                speedingState.emit(it * 3.6 > 120)
+        collect(speedState){
+            formatSpeedMps.emit(nf1.format(it))
+            formatSpeedKmph.emit(nf1.format(it* 3.6)) //  1 m/s = 3.6km/h
+            speedingState.emit(it * 3.6 > 120)
+        }
+        collect(altitudeState){
+            formatAltitude.emit(nf1.format(it))
+        }
+
+        collect(gnssSatelliteCount){
+            if (runningState.value) {
+                formatGnssSatelliteCount.emit("$it")
+            } else {
+                formatGnssSatelliteCount.emit("__")
             }
         }
-        viewModelScope.launch {
-            altitudeState.collect {
-                formatAltitude.emit(nf1.format(it))
-            }
-        }
-        viewModelScope.launch {
-            gnssSatelliteCount.collect{
-                if (runningState.value) {
-                    formatGnssSatelliteCount.emit("$it")
-                } else {
-                    formatGnssSatelliteCount.emit("__")
-                }
+        collect(speedAccuracyState){
+            if (hasSpeedAccuracyState.value) {
+                formatSpeedAccuracy.emit(nf1.format(it))
+            } else {
+                formatSpeedAccuracy.emit("N/A")
             }
         }
 
-        viewModelScope.launch {
-            speedAccuracyState.collect {
-                if (hasSpeedAccuracyState.value) {
-                    formatSpeedAccuracy.emit(nf1.format(it))
-                } else {
-                    formatSpeedAccuracy.emit("N/A")
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            mslAltitudeAccuracyState.collect {
-                if (hasMslAltitudeState.value) {
-                    formatMslAltitude.emit(nf1.format(it))
-                } else {
-                    formatMslAltitude.emit("N/A")
-                }
+        collect(mslAltitudeState){
+            if (hasMslAltitudeState.value) {
+                formatMslAltitude.emit(nf1.format(it))
+            } else {
+                formatMslAltitude.emit("N/A")
             }
         }
     }
@@ -291,8 +293,13 @@ class DashboardViewModel: ViewModel() {
     }
 
     fun toggle() {
-        viewModelScope.launch {
-            runningState.emit(!runningState.value)
+        if (runningState.value) {
+            stop()
+        } else {
+            start()
         }
+//        viewModelScope.launch {
+//            runningState.emit(!runningState.value)
+//        }
     }
 }
